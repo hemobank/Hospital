@@ -1,0 +1,105 @@
+const express = require("express");
+const cors = require("cors");
+const axios = require("axios");
+const crypto = require("crypto");
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+app.use(cors());
+app.use(express.json());
+
+/* 🔐 ASTRA CONFIG */
+const ASTRA_DB_ID = process.env.ASTRA_DB_ID;
+const ASTRA_REGION = process.env.ASTRA_REGION;
+const ASTRA_KEYSPACE = process.env.ASTRA_KEYSPACE;
+const ASTRA_TOKEN = process.env.ASTRA_TOKEN;
+
+const ASTRA_URL = `https://${ASTRA_DB_ID}-${ASTRA_REGION}.apps.astra.datastax.com/api/rest/v2/keyspaces/${ASTRA_KEYSPACE}`;
+
+/* =========================
+   TEST
+========================= */
+app.get("/", (req, res) => {
+  res.send("Astra DB backend running");
+});
+
+/* =========================
+   ➕ ADD HOSPITAL
+========================= */
+app.post("/api/hospitals", async (req, res) => {
+  try {
+    const hospital = {
+      id: crypto.randomUUID(),
+      ...req.body,
+      verified: false,
+      bloodStock: JSON.stringify(req.body.bloodStock),
+      lastUpdated: new Date().toISOString().slice(0, 10)
+    };
+
+    await axios.post(
+      `${ASTRA_URL}/hospitals`,
+      hospital,
+      { headers: { "X-Cassandra-Token": ASTRA_TOKEN } }
+    );
+
+    res.json({ message: "Hospital added", hospital });
+
+  } catch (err) {
+    console.error(err.response?.data || err.message);
+    res.status(500).json({ error: "Add hospital failed" });
+  }
+});
+
+/* =========================
+   📤 GET ALL HOSPITALS
+========================= */
+app.get("/api/hospitals", async (req, res) => {
+  try {
+    const response = await axios.get(
+      `${ASTRA_URL}/hospitals`,
+      { headers: { "X-Cassandra-Token": ASTRA_TOKEN } }
+    );
+
+    const hospitals = response.data.data.map(h => ({
+      ...h,
+      bloodStock: JSON.parse(h.bloodStock)
+    }));
+
+    res.json(hospitals);
+
+  } catch (err) {
+    res.status(500).json({ error: "Fetch failed" });
+  }
+});
+
+/* =========================
+   ♻ UPDATE HOSPITAL
+========================= */
+app.put("/api/hospitals/:id", async (req, res) => {
+  try {
+    const updateData = {
+      ...req.body,
+      bloodStock: req.body.bloodStock
+        ? JSON.stringify(req.body.bloodStock)
+        : undefined,
+      lastUpdated: new Date().toISOString().slice(0, 10)
+    };
+
+    await axios.put(
+      `${ASTRA_URL}/hospitals/${req.params.id}`,
+      updateData,
+      { headers: { "X-Cassandra-Token": ASTRA_TOKEN } }
+    );
+
+    res.json({ message: "Hospital updated" });
+
+  } catch (err) {
+    res.status(500).json({ error: "Update failed" });
+  }
+});
+
+/* 🚀 START */
+app.listen(PORT, () => {
+  console.log("Server running on port", PORT);
+});
