@@ -92,6 +92,9 @@ app.get("/api/hospitals", async (req, res) => {
       {
         headers: {
           "X-Cassandra-Token": ASTRA_TOKEN
+        },
+         params: {
+          where: "{}"   // ✅ REQUIRED by Astra
         }
       }
     );
