@@ -41,10 +41,20 @@ app.post("/api/hospitals", async (req, res) => {
   try {
     const hospital = {
       id: crypto.randomUUID(),
-      ...req.body,
+
+      // ✅ column names EXACT as Astra DB
+      hospitalname: req.body.hospitalName,
+      country: req.body.country,
+      state: req.body.state,
+      district: req.body.district,
+      address: req.body.address,
+      contact: req.body.contact,
+      email: req.body.email,
+      photo: req.body.photo || "",
+
       verified: false,
-      bloodStock: JSON.stringify(req.body.bloodStock),
-      lastUpdated: new Date().toISOString().slice(0, 10)
+      bloodstock: JSON.stringify(req.body.bloodStock),
+      lastupdated: new Date().toISOString().slice(0, 10)
     };
 
     await axios.post(
@@ -65,7 +75,10 @@ app.post("/api/hospitals", async (req, res) => {
 
   } catch (err) {
     console.error("ADD ERROR:", err.response?.data || err.message);
-    res.status(500).json({ error: "Add hospital failed" });
+    res.status(500).json({
+      error: "Add hospital failed",
+      details: err.response?.data || err.message
+    });
   }
 });
 
@@ -83,10 +96,21 @@ app.get("/api/hospitals", async (req, res) => {
       }
     );
 
-    const hospitals = response.data.data.map(h => ({
-      ...h,
-      bloodStock: JSON.parse(h.bloodStock)
-    }));
+   const hospitals = response.data.data.map(h => ({
+  id: h.id,
+  hospitalName: h.hospitalname,
+  country: h.country,
+  state: h.state,
+  district: h.district,
+  address: h.address,
+  contact: h.contact,
+  email: h.email,
+  photo: h.photo,
+  verified: h.verified,
+  bloodStock: JSON.parse(h.bloodstock),
+  lastUpdated: h.lastupdated
+}));
+
 
     res.json(hospitals);
 
